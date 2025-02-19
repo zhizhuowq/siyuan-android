@@ -1,4 +1,13 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
+plugins {
+    id 'com.android.application'
+}
+
+// 多渠道打包配置已引用的方式传递
+apply from: rootProject.file('flavors.gradle')
+apply from: rootProject.file('signings.gradle')
+apply from: rootProject.file('buildRelease.gradle')
+
 buildscript {
     ext {
         siyuanVersionCode = 261
@@ -13,7 +22,17 @@ buildscript {
     }
     dependencies {
         classpath 'com.android.tools.build:gradle:8.7.1'
-
+        // 从app里面合并
+        implementation 'androidx.appcompat:appcompat:1.6.1'
+        implementation 'com.google.android.material:material:1.10.0'
+        implementation 'androidx.lifecycle:lifecycle-process:2.6.1'
+        implementation 'androidx.work:work-runtime:2.8.1'
+    
+        implementation(name: 'kernel', ext: 'aar')
+        implementation("commons-io:commons-io:2.5") // 不要升级，否则无法兼容 Android 7
+        implementation 'com.gitee.zackratos:UltimateBarX:0.8.0'
+        implementation 'com.blankj:utilcodex:1.31.1'
+        implementation 'com.koushikdutta.async:androidasync:2.2.1'
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files
     }
@@ -31,7 +50,100 @@ allprojects {
         maven { url 'https://jitpack.io' }
     }
 }
+// By appending the version name, build type, and a timestamp to the APK filename,
+// it becomes very easy for testers and developers to identify exactly which version of the application they are testing.
+// This is particularly useful when multiple versions or builds are being tested simultaneously.
+// Testers don’t need to manually rename APKs to keep track of different builds or worry about which version is the latest.
+android.applicationVariants.configureEach { variant ->
+    variant.outputs.configureEach { output ->
+        def versionName = variant.versionName
+        def buildType = variant.buildType.name
+        def flavorName = variant.flavorName
+
+        // Set the archivesBaseName property
+        // https://stackoverflow.com/questions/52508720/how-to-change-the-generated-filename-for-app-bundles-with-gradle
+        project.setProperty("archivesBaseName", "siyuan-${versionName}")
+
+        // 根据构建类型调整文件名
+        if (buildType != "release") {
+            def formattedDate = new Date().format('yyyyMMddHHmmss')
+            project.setProperty("archivesBaseName", "siyuan-${versionName}-${buildType}-${formattedDate}")
+        }
+    }
+}
+
+android {
+    namespace 'org.b3log.siyuan'
+    compileSdk 34
+    compileSdkVersion 34
+    
+    defaultConfig {
+        applicationId "org.b3log.siyuan"
+        minSdk 24
+        targetSdk 34
+        versionCode siyuanVersionCode
+        versionName siyuanVersionName
+    }
+
+    buildTypes {
+        release {
+            // 正式版打包时指定签名证书
+            signingConfig signingConfigs.siyuanConfig
+
+            minifyEnabled true
+            shrinkResources true
+            // 此处优先级太高，渠道处配置 resValue 不会生效，故放到了 productFlavors 多渠道打包处处理
+            // resValue "string", "app_name", "SiYuan"
+            resValue "string", "app_package_name", "org.b3log.siyuan"
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            applicationIdSuffix ".debug"
+            minifyEnabled false
+            resValue "string", "app_name", "SiYuan-Debug"
+            resValue "string", "app_package_name", "org.b3log.siyuan.debug"
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    repositories {
+        flatDir {
+            dirs 'libs'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    packagingOptions {
+        resources {
+            excludes += ['META-INF/DEPENDENCIES',
+                         'META-INF/LICENSE',
+                         'META-INF/LICENSE.txt',
+                         'META-INF/license.txt',
+                         'META-INF/NOTICE',
+                         'META-INF/NOTICE.txt',
+                         'META-INF/notice.txt',
+                         'plugin.properties']
+        }
+        jniLibs {
+            useLegacyPackaging true
+        }
+    }
+
+    lint {
+        abortOnError false
+    }
+
+}
 
 task clean(type: Delete) {
     delete rootProject.buildDir
 }
+
+
+
+
+
