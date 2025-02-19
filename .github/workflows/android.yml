@@ -20,7 +20,7 @@ jobs:
       uses: gradle/actions/setup-gradle@v3
 
     - name: Build the app
-      working-directory: .
+      working-directory: ./app
       run: |
         chmod +x gradlew
         ./gradlew :server:copyRelease --stacktrace
