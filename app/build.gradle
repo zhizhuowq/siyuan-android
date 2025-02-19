@@ -32,7 +32,8 @@ android.applicationVariants.configureEach { variant ->
 android {
     namespace 'org.b3log.siyuan'
     compileSdk 34
-
+    compileSdkVersion 34
+    
     defaultConfig {
         applicationId "org.b3log.siyuan"
         minSdk 24
